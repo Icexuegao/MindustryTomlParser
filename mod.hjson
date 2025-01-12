@@ -1,0 +1,8 @@
+
+displayName:toml解析
+name:toml-parser
+main:tomlParser.Ice
+author:"Alon,2H₂O₂"
+java:true
+description:Mindustry的toml模组文件解析,食用方法请参考README.md
+minGameVersion:146

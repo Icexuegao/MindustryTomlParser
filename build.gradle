@@ -1,0 +1,93 @@
+buildscript {
+    ext {
+        proUser = System.getProperty("user.name")
+        sdkRoot = System.getenv("ANDROID_HOME")
+    }
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
+        maven { url 'https://maven.aliyun.com/nexus/content/repositories/jcenter' }
+        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+        maven { url "https://raw.githubusercontent.com/Zelaux/MindustryRepo/master/repository" }
+        maven { url "https://maven.aliyun.com/repository/public" }
+        maven { url 'https://jitpack.io' }
+    }
+}
+plugins {
+    id("java")
+}
+repositories {
+    mavenCentral()
+    mavenLocal()
+    maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
+    maven { url 'https://maven.aliyun.com/nexus/content/repositories/jcenter' }
+    maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+    maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
+    maven { url "https://maven.aliyun.com/repository/public" }
+    maven { url "https://raw.githubusercontent.com/Zelaux/MindustryRepo/master/repository" }
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    implementation 'org.tomlj:tomlj:1.1.1'
+    compileOnly "com.github.Tinylake:MindustryX:v146.004"
+}
+sourceSets.main {
+    java.srcDirs("src")
+    resources.srcDir('assets')
+}
+
+
+tasks.withType(JavaCompile).configureEach {
+    targetCompatibility = 17//目标的兼容性
+    sourceCompatibility = JavaVersion.VERSION_17
+    options.encoding = "UTF-8"
+}
+
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveFileName = "${project.name}.jar"
+    from files("README.md", "mod.hjson")
+    from(sourceSets.main.resources.srcDirs)
+    from {
+        configurations.runtimeClasspath.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+}
+tasks.register('jarAndroid') {
+    dependsOn(jar)
+    doLast {
+        if (!sdkRoot || !new File("$sdkRoot").exists()) throw new GradleException("No valid Android SDK found. ANDROID_HOME")
+
+        def platformRoot = new File("$sdkRoot/platforms/").listFiles().sort().reverse().find { f -> new File(f, "android.jar").exists() }
+
+        if (!platformRoot) throw new GradleException("No android.jar found. Ensure that you have an Android platform installed.")
+
+        //collect dependencies needed for desugaring
+        def dependencies = (configurations.compileClasspath.asList() + configurations.runtimeClasspath.asList() + [new File(platformRoot, "android.jar")]).collect { "--classpath $it.path" }.join(" ")
+
+        //dex and desugar files - this requires d8 in your PATH
+        "$sdkRoot/build-tools/35.0.0/d8.bat $dependencies --min-api 26 --output ${project.name}Android.jar ${project.name}.jar"
+                .execute(null, new File("build\\libs")).waitForProcessOutput(System.out, System.err)
+    }
+}
+tasks.register('deploy', Jar) {
+    dependsOn jar
+    dependsOn jarAndroid
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveFileName = "${project.name}s.jar"//存档文件名
+    from {
+        [zipTree("build\\libs\\${project.name}.jar"),
+         zipTree("build\\libs\\${project.name}Android.jar")]
+    }
+}
+tasks.register("copy", Copy) {
+    dependsOn(deploy)
+    from "build\\libs\\$project.name" + "s.jar"//源
+    into {
+        "C:/Users/$proUser/AppData/Roaming/Mindustry/mods"
+    }
+}
