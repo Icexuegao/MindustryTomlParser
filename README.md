@@ -1,8 +1,7 @@
 # MindustryTomlParser ![](assets/icon.png)
 
-### 这是一个mindustry的Toml模组文件解析器
+### 这是一个基于tomlj的mindustry的Toml模组文件解析器
 
-### 外部库:tomlj
 # 如何使用?
 
 TomlParsers 本身作为模组前置库加载
